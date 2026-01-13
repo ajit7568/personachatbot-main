@@ -9,6 +9,8 @@ from src.database import Base, get_db
 from src.app import app
 from src.models.character import Character
 from src.models.chat import Chat
+from src.models.user import User
+from src.services import auth as auth_service
 
 # Create test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -161,3 +163,54 @@ def test_invalid_chat_message():
     }
     response = client.post("/chat", json=invalid_message)
     assert response.status_code == 422  # Unprocessable Entity
+
+
+def test_set_password_and_login_via_email():
+    # Create a Google-only user directly in the test database
+    db = TestingSessionLocal()
+    try:
+        user = User(
+            email="test-google@example.com",
+            username="testgoogle",
+            google_id="google-id-123",
+            auth_provider="google",
+            is_active=True,
+            is_superuser=False,
+            hashed_password=None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    finally:
+        db.close()
+
+    # Create an access token for that user to call /auth/set-password
+    access_token = auth_service.create_access_token({"sub": "test-google@example.com"})
+
+    # Set a password
+    set_password_response = client.post(
+        "/auth/set-password",
+        json={
+            "new_password": "StrongPassword123!",
+            "confirm_password": "StrongPassword123!",
+        },
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert set_password_response.status_code == 200
+    data = set_password_response.json()
+    assert data["email"] == "test-google@example.com"
+    assert data["has_password"] is True
+
+    # Now login with email + password
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "test-google@example.com",
+            "password": "StrongPassword123!",
+        },
+    )
+    assert login_response.status_code == 200
+    login_data = login_response.json()
+    assert "access_token" in login_data
+    assert login_data["user"]["email"] == "test-google@example.com"
+    assert login_data["user"]["has_password"] is True

@@ -12,14 +12,17 @@ import {
     MicrophoneIcon,
     SpeakerWaveIcon,
     SpeakerXMarkIcon,
-    ChatBubbleLeftIcon
+    ChatBubbleLeftIcon,
+    TrashIcon,
+    PencilIcon
 } from '@heroicons/react/24/solid';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 import VoiceIndicator from './VoiceIndicator';
 import { CharacterSelect } from './CharacterSelect';
+import { ConfirmationDialog } from './ConfirmationDialog';
 import { containerVariants, dropdownVariants } from '../styles/variants';
-import { fetchCharacters, streamMessage, fetchChatMessages, fetchChatSessions, StreamResponse, ChatSession } from '../services/api';
+import { fetchCharacters, streamMessage, fetchChatMessages, fetchChatSessions, deleteChatSession, renameChatSession, StreamResponse, ChatSession } from '../services/api';
 import { Character } from '../services/api';
 import { logout, getCurrentUser } from '../services/auth';
 import { useSpeech } from '../hooks/useSpeech';
@@ -54,8 +57,31 @@ const Chat: React.FC = () => {
     const [isCharacterSelectOpen, setIsCharacterSelectOpen] = useState(false);
     const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState<string>('');
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+    const [sessionToDeleteTitle, setSessionToDeleteTitle] = useState<string>('');
 
     const navigate = useNavigate();
+
+    // Helper functions for localStorage title management
+    const getCustomTitle = (chatSession: string): string | null => {
+        const titles = JSON.parse(localStorage.getItem('chatSessionTitles') || '{}');
+        return titles[chatSession] || null;
+    };
+
+    const setCustomTitle = (chatSession: string, title: string): void => {
+        const titles = JSON.parse(localStorage.getItem('chatSessionTitles') || '{}');
+        titles[chatSession] = title;
+        localStorage.setItem('chatSessionTitles', JSON.stringify(titles));
+    };
+
+    const removeCustomTitle = (chatSession: string): void => {
+        const titles = JSON.parse(localStorage.getItem('chatSessionTitles') || '{}');
+        delete titles[chatSession];
+        localStorage.setItem('chatSessionTitles', JSON.stringify(titles));
+    };
 
     // Add authentication error handler
     const handleAuthError = useCallback(() => {
@@ -140,7 +166,12 @@ const Chat: React.FC = () => {
     const loadChatSessions = async () => {
         try {
             const sessions = await fetchChatSessions();
-            setChatSessions(sessions);
+            // Apply custom titles from localStorage
+            const sessionsWithCustomTitles = sessions.map(session => ({
+                ...session,
+                title: getCustomTitle(session.chat_session) || session.title
+            }));
+            setChatSessions(sessionsWithCustomTitles);
         } catch (error) {
             console.error('Error loading chat sessions:', error);
             if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -171,11 +202,12 @@ const Chat: React.FC = () => {
                 return;
             }
 
-            // Format messages and set them all at once
+            // Format messages in chronological order (already sorted by backend)
+            // Support both new format (role/content) and old format (message/is_bot)
             const formattedMessages: Message[] = chatMessages.map((msg) => ({
                 id: msg.id.toString(),
-                text: msg.message,
-                isUser: !msg.is_bot,
+                text: msg.content || msg.message,  // Use content if available, fallback to message
+                isUser: msg.role === "user" || (!msg.role && !msg.is_bot),  // Support both formats
                 character: characters.find(c => c.id === msg.character_id),
                 timestamp: new Date(msg.timestamp)
             }));
@@ -318,7 +350,7 @@ const Chat: React.FC = () => {
     };
 
     const startNewChat = () => {
-        // Clear messages and selected chat session
+        // Clear messages and selected chat session to start a fresh conversation
         setMessages([]);
         setSelectedChatSession(null);
         
@@ -346,15 +378,77 @@ const Chat: React.FC = () => {
         setIsSidebarOpen(true);
     };
 
+    const handleDeleteSession = async (e: React.MouseEvent, session: ChatSession) => {
+        e.stopPropagation(); // Prevent triggering the chat selection
+        setSessionToDelete(session.chat_session);
+        setSessionToDeleteTitle(session.title);
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteSession = async () => {
+        if (!sessionToDelete) return;
+        
+        try {
+            await deleteChatSession(sessionToDelete);
+            removeCustomTitle(sessionToDelete);
+            // Remove from local state
+            setChatSessions(prev => prev.filter(s => s.chat_session !== sessionToDelete));
+            // If this was the selected session, clear it
+            if (selectedChatSession === sessionToDelete) {
+                setSelectedChatSession(null);
+                setMessages([]);
+            }
+        } catch (error) {
+            console.error('Error deleting chat session:', error);
+            alert(error instanceof Error ? error.message : 'Failed to delete chat session');
+        } finally {
+            setSessionToDelete(null);
+            setSessionToDeleteTitle('');
+        }
+    };
+
+    const handleStartRename = (e: React.MouseEvent, session: ChatSession) => {
+        e.stopPropagation(); // Prevent triggering the chat selection
+        setRenamingSessionId(session.chat_session);
+        setRenameValue(getCustomTitle(session.chat_session) || session.title);
+    };
+
+    const handleCancelRename = () => {
+        setRenamingSessionId(null);
+        setRenameValue('');
+    };
+
+    const handleSaveRename = async (chatSession: string) => {
+        if (!renameValue.trim()) {
+            alert('Title cannot be empty');
+            return;
+        }
+        try {
+            await renameChatSession(chatSession, renameValue.trim());
+            setCustomTitle(chatSession, renameValue.trim());
+            // Update local state
+            setChatSessions(prev => prev.map(s => 
+                s.chat_session === chatSession 
+                    ? { ...s, title: renameValue.trim() }
+                    : s
+            ));
+            setRenamingSessionId(null);
+            setRenameValue('');
+        } catch (error) {
+            console.error('Error renaming chat session:', error);
+            alert(error instanceof Error ? error.message : 'Failed to rename chat session');
+        }
+    };
+
     return (
         <LazyMotion features={domAnimation}>
-            <div className="flex h-screen bg-gray-900">
+            <div className="relative flex h-screen bg-gray-900 overflow-hidden">
                 {/* Chat History Sidebar */}
                 <motion.div 
                     initial={{ x: isSidebarOpen ? 0 : -320 }}
                     animate={{ x: isSidebarOpen ? 0 : -320 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col h-screen"
+                    className="absolute left-0 top-0 z-10 w-80 bg-gray-800 border-r border-gray-700 flex flex-col h-screen"
                 >
                     <div className="p-4 border-b border-gray-700">
                         <button
@@ -372,43 +466,130 @@ const Chat: React.FC = () => {
                                     <p className="text-gray-400">No chat history</p>
                                 </div>
                             ) : (
-                                chatSessions.map((session) => (
-                                    <motion.button
-                                        key={session.chat_session}
-                                        onClick={() => handleSidebarChat(session.chat_session)}
-                                        className={`w-full p-3 rounded-lg text-left transition-all duration-200 group ${
-                                            selectedChatSession === session.chat_session 
-                                                ? 'bg-gray-600/50 hover:bg-gray-600' 
-                                                : 'hover:bg-gray-700'
-                                        }`}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <div className={`flex-shrink-0 w-4 h-4 mt-1 ${
-                                                selectedChatSession === session.chat_session ? 'text-white' : 'text-gray-400'
-                                            }`}>
-                                                <ChatBubbleLeftIcon className="w-4 h-4" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="text-sm font-medium text-gray-200 truncate group-hover:text-white">
-                                                    {session.title}
-                                                </h3>
-                                                <p className="text-xs text-gray-400 truncate mt-1">
-                                                    {session.last_message}
-                                                </p>
-                                            </div>
-                                            <time className="text-xs text-gray-500 flex-shrink-0">
-                                                {new Date(session.timestamp).toLocaleDateString()}
-                                            </time>
-                                        </div>
-                                    </motion.button>
-                                ))
+                                chatSessions.map((session) => {
+                                    const displayTitle = getCustomTitle(session.chat_session) || session.title;
+                                    const isRenaming = renamingSessionId === session.chat_session;
+                                    
+                                    return (
+                                        <motion.div
+                                            key={session.chat_session}
+                                            className={`w-full rounded-lg transition-all duration-200 group ${
+                                                selectedChatSession === session.chat_session 
+                                                    ? 'bg-gray-600/50 hover:bg-gray-600' 
+                                                    : 'hover:bg-gray-700'
+                                            }`}
+                                            onClick={(e) => {
+                                                // Don't trigger if renaming
+                                                if (isRenaming) {
+                                                    e.stopPropagation();
+                                                    return;
+                                                }
+                                                // Don't trigger if clicking on a button or its children
+                                                const target = e.target as HTMLElement;
+                                                if (target.closest('button') || target.tagName === 'BUTTON') {
+                                                    return;
+                                                }
+                                                // Only trigger chat selection on the main content area
+                                                handleSidebarChat(session.chat_session);
+                                            }}
+                                        >
+                                            {isRenaming ? (
+                                                <div 
+                                                    className="p-3"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <input
+                                                        type="text"
+                                                        value={renameValue}
+                                                        onChange={(e) => setRenameValue(e.target.value)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.stopPropagation();
+                                                                handleSaveRename(session.chat_session);
+                                                            } else if (e.key === 'Escape') {
+                                                                e.stopPropagation();
+                                                                handleCancelRename();
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                        className="w-full px-2 py-1 text-sm bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                    />
+                                                    <div className="flex gap-2 mt-2">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleSaveRename(session.chat_session);
+                                                            }}
+                                                            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                                                        >
+                                                            Save
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleCancelRename();
+                                                            }}
+                                                            className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div 
+                                                    className="p-3 cursor-pointer"
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={`flex-shrink-0 w-4 h-4 mt-1 ${
+                                                            selectedChatSession === session.chat_session ? 'text-white' : 'text-gray-400'
+                                                        }`}>
+                                                            <ChatBubbleLeftIcon className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h3 className="text-sm font-medium text-gray-200 truncate group-hover:text-white">
+                                                                {displayTitle}
+                                                            </h3>
+                                                            <p className="text-xs text-gray-400 truncate mt-1">
+                                                                {session.last_message}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                                            <time className="text-xs text-gray-500">
+                                                                {new Date(session.timestamp).toLocaleDateString()}
+                                                            </time>
+                                                            <button
+                                                                onClick={(e) => handleStartRename(e, session)}
+                                                                className="p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-600 rounded transition-all"
+                                                                title="Rename"
+                                                            >
+                                                                <PencilIcon className="w-3 h-3 text-gray-400 hover:text-white" />
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => handleDeleteSession(e, session)}
+                                                                className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-600/20 rounded transition-all"
+                                                                title="Delete"
+                                                            >
+                                                                <TrashIcon className="w-3 h-3 text-gray-400 hover:text-red-400" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    );
+                                })
                             )}
                         </div>
                     </div>
                 </motion.div>
 
                 {/* Rest of the chat interface */}
-                <div className="flex-1 flex flex-col">
+                <motion.div 
+                    animate={{ marginLeft: isSidebarOpen ? 320 : 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="flex-1 flex flex-col"
+                >
                     <div className="h-16 border-b border-gray-700 flex items-center justify-between px-4">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -539,12 +720,29 @@ const Chat: React.FC = () => {
                             </motion.button>
                         </form>
                     </div>
-                </div>
+                </motion.div>
             </div>
 
             <CharacterSelect
                 isOpen={isCharacterSelectOpen}
                 onCharacterSelect={handleCharacterSelect}
+                onClose={() => setIsCharacterSelectOpen(false)}
+                isSidebarOpen={isSidebarOpen}
+            />
+
+            <ConfirmationDialog
+                isOpen={deleteDialogOpen}
+                onClose={() => {
+                    setDeleteDialogOpen(false);
+                    setSessionToDelete(null);
+                    setSessionToDeleteTitle('');
+                }}
+                onConfirm={confirmDeleteSession}
+                title="Delete Conversation"
+                message={`Are you sure you want to delete "${sessionToDeleteTitle}"? This action cannot be undone and all messages in this conversation will be permanently deleted.`}
+                confirmText="Delete"
+                cancelText="Cancel"
+                confirmButtonColor="red"
             />
         </LazyMotion>
     );

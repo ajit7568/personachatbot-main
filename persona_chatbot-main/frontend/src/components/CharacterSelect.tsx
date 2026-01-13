@@ -13,6 +13,8 @@ import {
 interface CharacterSelectProps {
     onCharacterSelect: (character: Character) => void;
     isOpen: boolean;
+    onClose: () => void;
+    isSidebarOpen?: boolean;
 }
 
 // Genre-based background gradients
@@ -137,7 +139,7 @@ const CharacterCard: React.FC<{
     );
 };
 
-export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelect, isOpen }) => {
+export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelect, isOpen, onClose, isSidebarOpen = false }) => {
     const [characters, setCharacters] = useState<Character[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -203,12 +205,33 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSel
     }
 
     return (
-        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div 
+            className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={onClose}
+        >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="bg-gray-800 rounded-xl p-6 w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+                className={`bg-gray-800 rounded-xl p-6 overflow-hidden flex flex-col transition-all duration-300 ${
+                    isSidebarOpen 
+                        ? 'w-full max-w-4xl max-h-[90vh]' 
+                        : 'w-full max-w-6xl max-h-[90vh]'
+                }`}
+                style={isSidebarOpen ? { marginLeft: '320px' } : {}}
             >
+                {/* Header with Title and Close Button */}
+                <div className="mb-6 flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-white">Select a Character</h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                        title="Close"
+                    >
+                        <XMarkIcon className="w-6 h-6 text-gray-400 hover:text-white" />
+                    </button>
+                </div>
+
                 {/* Header with Search and Filters */}
                 <div className="mb-6 flex flex-col sm:flex-row gap-4">
                     <div className="relative flex-1">

@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import Chat from './components/Chat';
 import Auth from './components/Auth';
-import { getToken, handleGoogleCallback } from './services/auth';
+import SetPassword from './components/SetPassword';
+import { getToken, handleGoogleCallback, AuthResponse } from './services/auth';
 import './index.css';
 
 // Protected Route wrapper component
@@ -23,8 +24,13 @@ const GoogleCallback: React.FC = () => {
         const code = searchParams.get('code');
         if (code) {
             handleGoogleCallback(code)
-                .then(() => {
-                    navigate('/', { replace: true });
+                .then((response: AuthResponse) => {
+                    const hasPassword = response.user?.has_password;
+                    if (hasPassword) {
+                        navigate('/', { replace: true });
+                    } else {
+                        navigate('/set-password', { replace: true });
+                    }
                 })
                 .catch((error) => {
                     console.error('Google OAuth callback error:', error);
@@ -50,8 +56,15 @@ const App: React.FC = () => {
         <BrowserRouter>
             <div className="min-h-screen bg-gray-900">
                 <Routes>
-                    <Route path="/login" element={<Auth mode="login" />} />
-                    <Route path="/register" element={<Auth mode="register" />} />
+                    <Route path="/login" element={<Auth />} />
+                    <Route
+                        path="/set-password"
+                        element={
+                            <ProtectedRoute>
+                                <SetPassword />
+                            </ProtectedRoute>
+                        }
+                    />
                     <Route path="/auth/google/callback" element={<GoogleCallback />} />
                     <Route
                         path="/"

@@ -1,26 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { login, register, loginWithGoogle } from '../services/auth';
+import { EyeIcon, EyeSlashIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { login, loginWithGoogle } from '../services/auth';
 import authBg from '../assets/images/auth-bg.webp';
 import googleLogo from '../assets/icons/Google_G_logo.svg';
 
-interface AuthProps {
-    mode?: 'login' | 'register';
-}
-
-const Auth: React.FC<AuthProps> = ({ mode = 'login' }) => {
+const Auth: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [isLogin, setIsLogin] = useState(mode === 'login');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
-    const [showSuccess, setShowSuccess] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
     useEffect(() => {
-        setIsLogin(mode === 'login');
         // Check for OAuth errors in URL
         const urlParams = new URLSearchParams(location.search);
         const oauthError = urlParams.get('error');
@@ -29,36 +24,33 @@ const Auth: React.FC<AuthProps> = ({ mode = 'login' }) => {
         } else if (oauthError === 'no_code') {
             setError('Google sign-in was cancelled.');
         }
-    }, [mode, location]);
+        // Don't clear existing errors - let them persist until user interaction
+    }, [location]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setShowSuccess(false);
+
+        // Basic client-side validation
+        if (!email.trim()) {
+            setError('Please enter your email address');
+            return;
+        }
+        if (!password.trim()) {
+            setError('Please enter your password');
+            return;
+        }
 
         try {
-            if (isLogin) {
-                await login(email, password);
-                navigate('/');
-            } else {
-                await register(email, password);
-                setShowSuccess(true);
-                setEmail('');
-                setPassword('');
-                setTimeout(() => {
-                    setShowSuccess(false);
-                    navigate('/login');
-                }, 2000);
-            }
+            await login(email.trim(), password);
+            // Only navigate on success
+            navigate('/');
         } catch (error) {
-            setError(error instanceof Error ? error.message : 'Authentication failed');
+            // Error message is already user-friendly from the backend
+            const errorMessage = error instanceof Error ? error.message : 'Authentication failed. Please try again.';
+            setError(errorMessage);
+            // Don't navigate on error - stay on the page to show the error
         }
-    };
-
-    const toggleMode = () => {
-        const newMode = isLogin ? 'register' : 'login';
-        setError('');
-        navigate(`/${newMode}`);
     };
 
     const handleGoogleSignIn = async () => {
@@ -80,37 +72,6 @@ const Auth: React.FC<AuthProps> = ({ mode = 'login' }) => {
         >
             <div className="absolute inset-0 bg-gradient-to-br from-gray-900/90 via-purple-900/80 to-gray-900/90 backdrop-blur-sm" />
             
-            {/* Success Message Overlay */}
-            <AnimatePresence>
-                {showSuccess && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.5 }}
-                        className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm"
-                    >
-                        <motion.div
-                            initial={{ y: 20 }}
-                            animate={{ y: 0 }}
-                            className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl shadow-xl text-white text-center"
-                        >
-                            <motion.div
-                                animate={{ 
-                                    rotate: [0, 10, -10, 10, 0],
-                                    scale: [1, 1.2, 1] 
-                                }}
-                                transition={{ duration: 0.5 }}
-                                className="text-4xl mb-2"
-                            >
-                                🎉
-                            </motion.div>
-                            <h3 className="text-xl font-bold mb-1">Account Created Successfully!</h3>
-                            <p className="text-sm opacity-90">Redirecting to login...</p>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
             {/* Glass card effect */}
             <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -123,12 +84,10 @@ const Auth: React.FC<AuthProps> = ({ mode = 'login' }) => {
                     className="text-center mb-8"
                 >
                     <h2 className="text-3xl font-bold text-white mb-2">
-                        {isLogin ? 'Welcome Back' : 'Create Account'}
+                        Welcome back
                     </h2>
                     <p className="text-gray-300 text-sm">
-                        {isLogin 
-                            ? 'Sign in to continue chatting with your favorite characters' 
-                            : 'Join us and start chatting with amazing characters'}
+                        Sign in with your email and password or continue with Google
                     </p>
                 </motion.div>
 
@@ -153,25 +112,41 @@ const Auth: React.FC<AuthProps> = ({ mode = 'login' }) => {
                         <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                             Password
                         </label>
-                        <motion.input
-                            whileFocus={{ scale: 1.01 }}
-                            id="password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg bg-gray-800/50 text-white placeholder-gray-400 border border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                            placeholder="Enter your password"
-                            required
-                        />
+                        <div className="relative">
+                            <motion.input
+                                whileFocus={{ scale: 1.01 }}
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-3 pr-10 rounded-lg bg-gray-800/50 text-white placeholder-gray-400 border border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                                placeholder="Enter your password"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none transition-colors"
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                            >
+                                {showPassword ? (
+                                    <EyeSlashIcon className="w-5 h-5" />
+                                ) : (
+                                    <EyeIcon className="w-5 h-5" />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     {error && (
                         <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="p-4 rounded-lg bg-red-500/10 border border-red-500/20"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-3"
                         >
-                            <p className="text-red-500 text-sm text-center">
+                            <ExclamationCircleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-red-400 text-sm flex-1 leading-relaxed">
                                 {error}
                             </p>
                         </motion.div>
@@ -183,7 +158,7 @@ const Auth: React.FC<AuthProps> = ({ mode = 'login' }) => {
                         type="submit"
                         className="w-full px-4 py-3 text-white text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg hover:from-purple-500 hover:to-blue-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800 shadow-lg shadow-purple-500/20 transition-all duration-200"
                     >
-                        {isLogin ? 'Sign In' : 'Create Account'}
+                        Sign In
                     </motion.button>
 
                     <div className="relative my-6">
@@ -191,7 +166,7 @@ const Auth: React.FC<AuthProps> = ({ mode = 'login' }) => {
                             <div className="w-full border-t border-gray-600"></div>
                         </div>
                         <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-transparent text-gray-400">Or continue with</span>
+                            <span className="px-2 bg-gray-900 text-gray-400 rounded-full">Or continue with</span>
                         </div>
                     </div>
 
@@ -216,17 +191,6 @@ const Auth: React.FC<AuthProps> = ({ mode = 'login' }) => {
                         )}
                     </motion.button>
 
-                    <div className="text-center mt-6">
-                        <button
-                            type="button"
-                            onClick={toggleMode}
-                            className="text-sm text-gray-400 hover:text-white transition-colors duration-200"
-                        >
-                            {isLogin 
-                                ? "Don't have an account? Create one" 
-                                : 'Already have an account? Sign in'}
-                        </button>
-                    </div>
                 </form>
             </motion.div>
         </div>

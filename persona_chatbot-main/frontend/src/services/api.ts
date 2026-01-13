@@ -55,21 +55,29 @@ export interface StreamResponse {
 
 export interface ChatSession {
     chat_session: string;
+    conversation_id?: string;  // Alias for chat_session
     title: string;
     last_message: string;
     timestamp: string;
+    created_at?: string;
+    updated_at?: string;
     character_id?: number;
+    message_count?: number;  // Total messages in conversation
 }
 
 export interface ChatHistoryMessage {
     id: number;
-    message: string;
-    user_id: number;
+    role?: "user" | "assistant";  // ChatGPT-style role
+    content?: string;  // ChatGPT-style content
+    message: string;  // Keep for backward compatibility
+    user_id?: number;
     character_id?: number;
-    is_bot: boolean;
+    is_bot: boolean;  // Keep for backward compatibility
     timestamp: string;
     last_message?: string; // Added this field
     chat_id?: string;
+    chat_session?: string;
+    conversation_id?: string;  // Alias for chat_session
 }
 
 export interface GroupedChatMessage {
@@ -291,6 +299,31 @@ export const fetchChatSessions = async (): Promise<ChatSession[]> => {
         return response.data;
     } catch (error) {
         console.error('Error fetching chat sessions:', error);
+        throw error;
+    }
+};
+
+export const deleteChatSession = async (chatSession: string): Promise<void> => {
+    try {
+        await api.delete(`/chat/sessions/${chatSession}`);
+    } catch (error) {
+        console.error('Error deleting chat session:', error);
+        if (axios.isAxiosError(error)) {
+            throw new Error(error.response?.data?.detail || 'Failed to delete chat session');
+        }
+        throw error;
+    }
+};
+
+export const renameChatSession = async (chatSession: string, title: string): Promise<{ title: string }> => {
+    try {
+        const response = await api.patch(`/chat/sessions/${chatSession}/title`, { title });
+        return response.data;
+    } catch (error) {
+        console.error('Error renaming chat session:', error);
+        if (axios.isAxiosError(error)) {
+            throw new Error(error.response?.data?.detail || 'Failed to rename chat session');
+        }
         throw error;
     }
 };

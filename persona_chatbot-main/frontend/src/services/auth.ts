@@ -7,16 +7,18 @@ const axiosInstance = axios.create({
     baseURL: API_URL,
 });
 
-export interface AuthResponse {
-    access_token: string;
-    token_type: string;
-    refresh_token?: string;
-}
-
 export interface User {
     id: number;
     email: string;
     username: string;
+    has_password?: boolean;
+}
+
+export interface AuthResponse {
+    access_token: string;
+    token_type: string;
+    refresh_token?: string;
+    user?: User;
 }
 
 // Add response interceptor for handling auth errors
@@ -25,8 +27,13 @@ axiosInstance.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         
-        // If error is 401 and we haven't tried to refresh token yet
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Don't try to refresh token for login/register/auth endpoints - let them show errors
+        const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
+                              originalRequest.url?.includes('/auth/register') ||
+                              originalRequest.url?.includes('/auth/google/');
+        
+        // If error is 401 and we haven't tried to refresh token yet, and it's not an auth endpoint
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
             originalRequest._retry = true;
             
             try {
@@ -49,7 +56,10 @@ axiosInstance.interceptors.response.use(
                     return axiosInstance(originalRequest);
                 }
             } catch (refreshError) {
-                logout();
+                // Only logout if we're not already on the login page
+                if (window.location.pathname !== '/login') {
+                    logout();
+                }
                 return Promise.reject(refreshError);
             }
         }
@@ -57,31 +67,32 @@ axiosInstance.interceptors.response.use(
     }
 );
 
-export const register = async (email: string, password: string): Promise<User> => {
-    const response = await axiosInstance.post('/auth/register', {
-        email,
-        password,
-    });
-    return response.data;
-};
-
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
-    const response = await axiosInstance.post('/auth/login', {
-        email,
-        password,
-    });
-    
-    if (response.data.access_token) {
-        localStorage.setItem('token', response.data.access_token);
-        if (response.data.refresh_token) {
-            localStorage.setItem('refresh_token', response.data.refresh_token);
+    try {
+        const response = await axiosInstance.post('/auth/login', {
+            email,
+            password,
+        });
+        
+        if (response.data.access_token) {
+            localStorage.setItem('token', response.data.access_token);
+            if (response.data.refresh_token) {
+                localStorage.setItem('refresh_token', response.data.refresh_token);
+            }
+            // Store expiry time (30 minutes from now)
+            const expiryTime = new Date().getTime() + 30 * 60 * 1000;
+            localStorage.setItem('token_expiry', expiryTime.toString());
         }
-        // Store expiry time (30 minutes from now)
-        const expiryTime = new Date().getTime() + 30 * 60 * 1000;
-        localStorage.setItem('token_expiry', expiryTime.toString());
+        
+        return response.data;
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.data?.detail) {
+            // Extract user-friendly error message from backend
+            throw new Error(error.response.data.detail);
+        }
+        // Fallback for network errors or unexpected errors
+        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
     }
-    
-    return response.data;
 };
 
 export const logout = () => {
@@ -142,7 +153,7 @@ export const loginWithGoogle = async (): Promise<void> => {
 export const handleGoogleCallback = async (code: string): Promise<AuthResponse> => {
     try {
         const response = await axiosInstance.post('/auth/google/token', {
-            code: code
+            code: code,
         });
         
         if (response.data.access_token) {
@@ -161,5 +172,43 @@ export const handleGoogleCallback = async (code: string): Promise<AuthResponse> 
             throw new Error(error.response?.data?.detail || 'Google authentication failed');
         }
         throw new Error('Google authentication failed');
+    }
+};
+
+export const setPassword = async (
+    newPassword: string,
+    confirmPassword: string
+): Promise<void> => {
+    const token = getToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    try {
+        await axiosInstance.post(
+            '/auth/set-password',
+            {
+                new_password: newPassword,
+                confirm_password: confirmPassword,
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.data?.detail) {
+            // Extract validation error message from Pydantic/FastAPI response
+            const detail = error.response.data.detail;
+            if (Array.isArray(detail)) {
+                // Pydantic validation errors come as an array
+                const firstError = detail[0];
+                throw new Error(firstError.msg || firstError.message || 'Validation failed');
+            } else if (typeof detail === 'string') {
+                throw new Error(detail);
+            }
+        }
+        throw error;
     }
 };

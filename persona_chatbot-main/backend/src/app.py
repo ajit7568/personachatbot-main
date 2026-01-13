@@ -4,7 +4,11 @@ from .routes import auth, chat, character
 from .database import create_tables, Base, engine
 from . import models  # This will register all models with SQLAlchemy
 import os
+import logging
 from dotenv import load_dotenv
+
+# Suppress passlib bcrypt version warning (harmless compatibility issue)
+logging.getLogger('passlib.handlers.bcrypt').setLevel(logging.ERROR)
 
 # Load environment variables
 load_dotenv()

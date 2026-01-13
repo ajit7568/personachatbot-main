@@ -13,3 +13,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     refresh_token = Column(String, nullable=True)  # New field for refresh token
+
+    @property
+    def has_password(self) -> bool:
+        """Check if user has a password set."""
+        return self.hashed_password is not None and self.hashed_password != ""

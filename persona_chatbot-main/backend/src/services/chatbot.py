@@ -117,13 +117,33 @@ Remember to stay in character while providing helpful and relevant responses."""
             # Get character context if specified
             system_prompt = await self.get_character_context(db, character_id)
             
-            # Prepare the chat completion request
+            # Get conversation history for context (ChatGPT-style)
+            conversation_history = []
+            if session_id:
+                previous_messages = (
+                    db.query(Chat)
+                    .filter(
+                        Chat.user_id == user_id,
+                        Chat.chat_session == session_id
+                    )
+                    .order_by(Chat.timestamp.asc())
+                    .all()
+                )
+                # Convert to message format, excluding the current message we just added
+                for prev_msg in previous_messages[:-1]:  # Exclude the last message (current user message)
+                    conversation_history.append({
+                        "role": "assistant" if prev_msg.is_bot else "user",
+                        "content": prev_msg.message
+                    })
+            
+            # Prepare the chat completion request with conversation history
+            messages_for_api = [{"role": "system", "content": system_prompt}]
+            messages_for_api.extend(conversation_history)
+            messages_for_api.append({"role": "user", "content": message})
+            
             completion = await self.groq_client.chat.completions.create(
                 model=GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message}
-                ],
+                messages=messages_for_api,
                 stream=True,
                 temperature=0.7,
                 max_tokens=2000
@@ -188,12 +208,34 @@ Remember to stay in character while providing helpful and relevant responses."""
 
             # Generate response based on character or default assistant
             system_prompt = await self.get_character_context(db, character_id)
+            
+            # Get conversation history for context (ChatGPT-style)
+            conversation_history = []
+            if session_id:
+                previous_messages = (
+                    db.query(Chat)
+                    .filter(
+                        Chat.user_id == user_id,
+                        Chat.chat_session == session_id
+                    )
+                    .order_by(Chat.timestamp.asc())
+                    .all()
+                )
+                # Convert to message format, excluding the current message we just added
+                for prev_msg in previous_messages[:-1]:  # Exclude the last message (current user message)
+                    conversation_history.append({
+                        "role": "assistant" if prev_msg.is_bot else "user",
+                        "content": prev_msg.message
+                    })
+            
+            # Prepare the chat completion request with conversation history
+            messages_for_api = [{"role": "system", "content": system_prompt}]
+            messages_for_api.extend(conversation_history)
+            messages_for_api.append({"role": "user", "content": message})
+            
             completion = await self.groq_client.chat.completions.create(
                 model=GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message}
-                ],
+                messages=messages_for_api,
                 temperature=0.7,
                 max_tokens=2000
             )
