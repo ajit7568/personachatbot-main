@@ -602,8 +602,46 @@ const Chat: React.FC = () => {
                             onClick={() => setIsCharacterSelectOpen(true)}
                             className="flex items-center space-x-2 p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200 text-white"
                         >
-                            <UserGroupIcon className="w-5 h-5" />
-                            <span>{selectedCharacter ? selectedCharacter.name : 'Select Character'}</span>
+                            {selectedCharacter ? (
+                                <>
+                                    {selectedCharacter.image_url ? (
+                                        <img 
+                                            src={selectedCharacter.image_url} 
+                                            alt={selectedCharacter.name}
+                                            className="w-8 h-8 rounded-full object-cover"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = 'none';
+                                                if (target.nextElementSibling) {
+                                                    (target.nextElementSibling as HTMLElement).style.display = 'block';
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                                            <span className="text-sm font-bold text-white">
+                                                {selectedCharacter.name.charAt(0)}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-col items-start">
+                                        <span className="text-sm font-medium">{selectedCharacter.name}</span>
+                                        {selectedCharacter.genre && (
+                                            <span className="text-xs text-gray-400 capitalize">{selectedCharacter.genre}</span>
+                                        )}
+                                    </div>
+                                    {selectedCharacter.source && selectedCharacter.source !== 'local' && (
+                                        <span className="text-xs px-2 py-0.5 rounded bg-gray-600/50 text-gray-300">
+                                            {selectedCharacter.source.toUpperCase()}
+                                        </span>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <UserGroupIcon className="w-5 h-5" />
+                                    <span>Select Character</span>
+                                </>
+                            )}
                         </button>
 
                         <div className="relative" ref={userMenuRef}>

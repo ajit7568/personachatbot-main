@@ -7,6 +7,10 @@ class CharacterBase(BaseModel):
     movie: str
     chat_style: str
     example_responses: Annotated[List[str], conlist(str, min_length=1, max_length=10)]
+    genre: Optional[str] = None
+    source: Optional[str] = None
+    image_url: Optional[str] = None
+    external_id: Optional[str] = None
 
 class CharacterCreate(CharacterBase):
     pass
@@ -16,6 +20,10 @@ class CharacterUpdate(BaseModel):
     movie: Optional[str] = None
     chat_style: Optional[str] = None
     example_responses: Optional[Annotated[List[str], conlist(str, min_length=1, max_length=10)]] = None
+    genre: Optional[str] = None
+    source: Optional[str] = None
+    image_url: Optional[str] = None
+    external_id: Optional[str] = None
     updated_at: datetime = datetime.utcnow()
 
 class Character(CharacterBase):

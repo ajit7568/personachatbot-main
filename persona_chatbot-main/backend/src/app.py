@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import auth, chat, character
+from .routes import auth, chat, character, characters
 from .database import create_tables, Base, engine
 from . import models  # This will register all models with SQLAlchemy
 import os
@@ -46,6 +46,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(character.router)
+app.include_router(characters.router)  # External character search API
 
 @app.get("/")
 def read_root():

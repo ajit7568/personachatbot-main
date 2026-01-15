@@ -32,11 +32,40 @@ alembic upgrade head
 
 ## Running the Application
 
-To start the FastAPI application, use the following command:
+**IMPORTANT:** Always use the virtual environment Python to run uvicorn to ensure all dependencies are available.
 
+### Option 1: Using the startup script (Recommended)
+```bash
+# Windows PowerShell
+.\start_server.ps1
+
+# Windows Command Prompt
+start_server.bat
 ```
-uvicorn src.app:app --reload
+
+### Option 2: Manual activation
+```bash
+# Activate virtual environment first
+# Windows PowerShell:
+.\venv\Scripts\Activate.ps1
+
+# Windows Command Prompt:
+venv\Scripts\activate.bat
+
+# Then run uvicorn
+python -m uvicorn src.app:app --reload
 ```
+
+### Option 3: Direct venv Python (Most reliable)
+```bash
+# Windows PowerShell:
+.\venv\Scripts\python.exe -m uvicorn src.app:app --reload
+
+# Windows Command Prompt:
+venv\Scripts\python.exe -m uvicorn src.app:app --reload
+```
+
+**Note:** If you get `ModuleNotFoundError` errors, it means uvicorn is not using the venv Python. Use Option 3 above to ensure the correct Python is used.
 
 ## API Documentation
 

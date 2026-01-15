@@ -42,8 +42,22 @@ export interface Character {
     movie: string;
     chat_style: string;
     example_responses: string[];
+    genre?: string;
+    source?: string;
+    image_url?: string;
+    external_id?: string;
     created_at: string;
     updated_at?: string;
+}
+
+export interface ExternalCharacterResult {
+    name: string;
+    universe_title: string;
+    description: string;
+    image_url?: string;
+    genre?: string;
+    source: string;
+    external_id?: string;
 }
 
 export interface StreamResponse {
@@ -126,9 +140,12 @@ export const groupMessagesByChat = (messages: ChatHistoryMessage[]): GroupedChat
     );
 };
 
-export const fetchCharacters = async (): Promise<Character[]> => {
+export const fetchCharacters = async (genre?: string, excludeGenerated: boolean = true): Promise<Character[]> => {
     try {
-        const response = await api.get('/characters');
+        const params: any = {};
+        if (genre) params.genre = genre;
+        if (excludeGenerated !== undefined) params.exclude_generated = excludeGenerated;
+        const response = await api.get('/characters', { params });
         return response.data;
     } catch (error) {
         console.error('Error fetching characters:', error);
@@ -243,6 +260,68 @@ export const createCharacter = async (character: Omit<Character, 'id' | 'created
         return response.data;
     } catch (error) {
         console.error('Error creating character:', error);
+        throw error;
+    }
+};
+
+export const createCharacterFromExternal = async (
+    externalChar: ExternalCharacterResult,
+    chatStyle?: string,
+    exampleResponses?: string[]
+): Promise<Character> => {
+    try {
+        const payload: any = { ...externalChar };
+        if (chatStyle) payload.chat_style = chatStyle;
+        if (exampleResponses) payload.example_responses = exampleResponses;
+        const response = await api.post('/characters/from-external', payload);
+        return response.data;
+    } catch (error) {
+        console.error('Error creating character from external:', error);
+        throw error;
+    }
+};
+
+export const searchExternalCharacters = async (
+    query: string,
+    category: string = 'other',
+    limit: number = 10
+): Promise<ExternalCharacterResult[]> => {
+    try {
+        const response = await api.get('/api/characters/search', {
+            params: { q: query, category, limit }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error searching external characters:', error);
+        throw error;
+    }
+};
+
+export const favoriteCharacter = async (characterId: number): Promise<string | undefined> => {
+    try {
+        const response = await api.post(`/characters/${characterId}/favorite`);
+        return response.data?.ai_message;
+    } catch (error) {
+        console.error('Error favoriting character:', error);
+        throw error;
+    }
+};
+
+export const unfavoriteCharacter = async (characterId: number): Promise<void> => {
+    try {
+        await api.delete(`/characters/${characterId}/favorite`);
+    } catch (error) {
+        console.error('Error unfavoriting character:', error);
+        throw error;
+    }
+};
+
+export const fetchMyCharacters = async (): Promise<Character[]> => {
+    try {
+        const response = await api.get('/characters/my');
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching my characters:', error);
         throw error;
     }
 };

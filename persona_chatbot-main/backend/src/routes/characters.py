@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
-from ..services.character_service import character_service
+import logging
+from ..services.character_service import character_service, ExternalCharacterResult
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/characters", tags=["characters"])
 
@@ -48,3 +51,36 @@ async def generate_hybrid_character(
         )
     
     return await character_service.generate_hybrid_character(dnd_race, anime_character)
+
+@router.get("/search", response_model=List[ExternalCharacterResult])
+async def search_external_characters(
+    q: str = Query(..., description="Search query for character name"),
+    category: str = Query("other", description="Category: anime, movie, tv, bollywood, hollywood, book, other"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of results")
+):
+    """
+    Search for characters across external APIs (TMDB, AniList, OpenLibrary, Wikipedia)
+    - q: Search query
+    - category: Character category (anime, movie, tv, bollywood, hollywood, book, other)
+    - limit: Maximum number of results (1-50)
+    """
+    if not q or not q.strip():
+        raise HTTPException(status_code=400, detail="Search query 'q' is required")
+    
+    valid_categories = ["anime", "movie", "tv", "bollywood", "hollywood", "book", "other", "all"]
+    if category.lower() not in valid_categories:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid category. Must be one of: {', '.join(valid_categories)}"
+        )
+    
+    try:
+        results = await character_service.search_external_characters(
+            query=q.strip(),
+            category=category.lower(),
+            limit=limit
+        )
+        return results
+    except Exception as e:
+        logger.error(f"Error in search_external_characters: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to search characters: {str(e)}")
