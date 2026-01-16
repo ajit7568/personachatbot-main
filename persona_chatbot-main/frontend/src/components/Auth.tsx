@@ -9,6 +9,7 @@ import googleLogo from '../assets/icons/Google_G_logo.svg';
 const Auth: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -42,7 +43,7 @@ const Auth: React.FC = () => {
         }
 
         try {
-            await login(email.trim(), password);
+            await login(email.trim(), password, rememberMe);
             // Only navigate on success
             navigate('/');
         } catch (error) {
@@ -136,6 +137,19 @@ const Auth: React.FC = () => {
                                 )}
                             </button>
                         </div>
+                    </div>
+
+                    <div className="flex items-center">
+                        <input
+                            type="checkbox"
+                            id="remember"
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                            className="w-4 h-4 bg-gray-800/50 border border-gray-700/50 rounded focus:ring-2 focus:ring-purple-500 text-purple-600 cursor-pointer transition-all duration-200"
+                        />
+                        <label htmlFor="remember" className="ml-2 text-sm text-gray-300 cursor-pointer hover:text-gray-200 transition-colors">
+                            Keep me signed in for 30 days
+                        </label>
                     </div>
 
                     {error && (

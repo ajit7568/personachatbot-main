@@ -67,11 +67,12 @@ axiosInstance.interceptors.response.use(
     }
 );
 
-export const login = async (email: string, password: string): Promise<AuthResponse> => {
+export const login = async (email: string, password: string, rememberMe: boolean = false): Promise<AuthResponse> => {
     try {
         const response = await axiosInstance.post('/auth/login', {
             email,
             password,
+            remember_me: rememberMe,
         });
         
         if (response.data.access_token) {
@@ -79,7 +80,19 @@ export const login = async (email: string, password: string): Promise<AuthRespon
             if (response.data.refresh_token) {
                 localStorage.setItem('refresh_token', response.data.refresh_token);
             }
-            // Store expiry time (30 minutes from now)
+            // Store whether user has enabled remember me
+            if (rememberMe) {
+                localStorage.setItem('remember_me', 'true');
+                // For remember me, refresh token expires in 30 days
+                const expiryTime = new Date().getTime() + 30 * 24 * 60 * 60 * 1000;
+                localStorage.setItem('refresh_token_expiry', expiryTime.toString());
+            } else {
+                localStorage.removeItem('remember_me');
+                // Standard refresh token expires in 7 days
+                const expiryTime = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
+                localStorage.setItem('refresh_token_expiry', expiryTime.toString());
+            }
+            // Store access token expiry time (30 minutes from now)
             const expiryTime = new Date().getTime() + 30 * 60 * 1000;
             localStorage.setItem('token_expiry', expiryTime.toString());
         }
@@ -99,7 +112,16 @@ export const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('token_expiry');
+    localStorage.removeItem('refresh_token_expiry');
+    localStorage.removeItem('remember_me');
     window.location.href = '/login';
+};
+
+export const isRefreshTokenValid = (): boolean => {
+    const refreshTokenExpiry = localStorage.getItem('refresh_token_expiry');
+    if (!refreshTokenExpiry) return false;
+    
+    return new Date().getTime() < parseInt(refreshTokenExpiry);
 };
 
 export const isTokenExpired = (): boolean => {

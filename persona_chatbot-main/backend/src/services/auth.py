@@ -28,6 +28,8 @@ if not SECRET_KEY:
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
+REMEMBER_ME_EXPIRE_DAYS = 30
 
 # Initialize password context with bcrypt
 # Using 'auto' for deprecated schemes to handle version detection gracefully
@@ -188,6 +190,17 @@ def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_remember_me_token(data: dict) -> str:
+    """Create a long-lived token for 'Remember Me' functionality.
+    
+    This token expires in 30 days and can be used to automatically log in the user
+    without requiring them to enter their password.
+    """
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REMEMBER_ME_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "remember_me"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_tokens(data: dict) -> Tuple[str, str]:

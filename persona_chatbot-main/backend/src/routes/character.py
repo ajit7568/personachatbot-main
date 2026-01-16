@@ -92,25 +92,27 @@ def create_character_from_external(
         chat_style = external_char.get("chat_style")
         example_responses = external_char.get("example_responses")
 
-        # Check if character already exists (by external_id+source or name+movie)
+        # Check if character already exists (by external_id+source OR name+movie)
         existing = None
         if external_char.get("external_id") and external_char.get("source"):
             existing = db.query(Character).filter(
                 Character.external_id == external_char.get("external_id"),
                 Character.source == external_char.get("source")
             ).first()
-
-        if not existing:
-            existing = db.query(Character).filter(
-                Character.name == external_char.get("name"),
-                Character.movie == external_char.get("universe_title")
-            ).first()
         
+        # Only check by name+movie if external_id check didn't find anything
+        if not existing:
+            name = external_char.get("name")
+            movie = external_char.get("universe_title")
+            if name and movie:
+                existing = db.query(Character).filter(
+                    Character.name == name,
+                    Character.movie == movie
+                ).first()
+        
+        # If character exists, return existing character instead of error
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Character '{external_char['name']}' already exists"
-            )
+            return existing
         
         # Auto-generate chat_style if not provided
         if not chat_style:

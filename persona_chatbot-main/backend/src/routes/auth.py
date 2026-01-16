@@ -28,8 +28,12 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-async def login(user: UserLogin, db: Session = Depends(get_db)):
+async def login(user: UserLogin, remember_me: bool = Body(False, embed=True), db: Session = Depends(get_db)):
     """Authenticate user with email and password.
+    
+    Args:
+        user: Email and password credentials
+        remember_me: If true, issue a 30-day refresh token. If false, standard 7-day token.
     
     Returns clear error messages for:
     - Email not found
@@ -47,6 +51,11 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Authentication failed. Please check your credentials and try again.")
 
     user_obj, access_token, refresh_token = result
+    
+    # If remember_me is enabled, create a long-lived token
+    if remember_me:
+        refresh_token = auth.create_remember_me_token({"sub": user_obj.email})
+    
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
