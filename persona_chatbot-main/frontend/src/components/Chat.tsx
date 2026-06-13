@@ -662,23 +662,37 @@ const Chat: React.FC = () => {
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                             </div>
                         ) : messages.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 p-8">
-                                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-3xl">
-                                    🤖
+                            selectedCharacter ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 p-8">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-3xl font-black text-white shadow-lg border border-white/10">
+                                        {selectedCharacter.name.charAt(0)}
+                                    </div>
+                                    <div className="space-y-1 max-w-sm">
+                                        <h3 className="font-outfit font-bold text-lg text-white">Say hello to {selectedCharacter.name}!</h3>
+                                        <p className="text-xs text-gray-400">
+                                            Start your conversation. Type a message below.
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="space-y-1 max-w-sm">
-                                    <h3 className="font-outfit font-bold text-lg text-white">No active conversation</h3>
-                                    <p className="text-xs text-gray-400">
-                                        Select a character from the menu above to start an immersive roleplay chat.
-                                    </p>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 p-8">
+                                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-3xl">
+                                        🤖
+                                    </div>
+                                    <div className="space-y-1 max-w-sm">
+                                        <h3 className="font-outfit font-bold text-lg text-white">No active conversation</h3>
+                                        <p className="text-xs text-gray-400">
+                                            Select a character from the menu above to start an immersive roleplay chat.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsCharacterSelectOpen(true)}
+                                        className="px-4 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-500 rounded-lg transition-all"
+                                    >
+                                        Select Character
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => setIsCharacterSelectOpen(true)}
-                                    className="px-4 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-500 rounded-lg transition-all"
-                                >
-                                    Select Character
-                                </button>
-                            </div>
+                            )
                         ) : (
                             <div className="space-y-4 max-w-4xl mx-auto">
                                 <MessageList 
@@ -733,11 +747,11 @@ const Chat: React.FC = () => {
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder={isListening ? 'Listening...' : 'Message your character...'}
                                 className="flex-1 p-4 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
-                                disabled={messages.length === 0}
+                                disabled={!selectedCharacter}
                             />
                             <button
                                 type="submit"
-                                disabled={isLoading || !input.trim() || messages.length === 0}
+                                disabled={isLoading || !input.trim() || !selectedCharacter}
                                 className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/10"
                             >
                                 <PaperAirplaneIcon className="w-5 h-5" />
