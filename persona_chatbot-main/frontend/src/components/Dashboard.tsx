@@ -103,14 +103,17 @@ const Dashboard: React.FC = () => {
                                 <div className="w-full h-48 flex items-end justify-between px-2 pt-4 relative">
                                     {/* Mock chart heights representing traffic */}
                                     {[20, 45, 30, 80, 50, 70, 90].map((h, i) => (
-                                        <div key={i} className="flex flex-col items-center gap-2 flex-1">
-                                            <div 
-                                                style={{ height: `${h}%` }}
-                                                className="w-8 sm:w-12 rounded-t bg-gradient-to-t from-indigo-600 to-purple-500 hover:to-purple-400 transition-all cursor-pointer relative group"
-                                            >
-                                                <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-0.5 rounded bg-gray-800 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {h}%
-                                                </span>
+                                        <div key={i} className="flex flex-col items-center flex-1 h-full justify-end">
+                                            {/* Bar container with resolved height */}
+                                            <div className="w-full flex-1 flex items-end justify-center mb-2">
+                                                <div 
+                                                    style={{ height: `${h}%` }}
+                                                    className="w-8 sm:w-12 rounded-t bg-gradient-to-t from-indigo-600 to-purple-500 hover:to-purple-400 transition-all cursor-pointer relative group"
+                                                >
+                                                    <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-0.5 rounded bg-gray-800 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                        {h}%
+                                                    </span>
+                                                </div>
                                             </div>
                                             <span className="text-[10px] text-gray-500 font-semibold uppercase">
                                                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]}
