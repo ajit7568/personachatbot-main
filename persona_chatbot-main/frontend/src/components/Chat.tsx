@@ -53,7 +53,7 @@ const Chat: React.FC = () => {
     const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const [selectedChatSession, setSelectedChatSession] = useState<string | null>(null);
     const [isCharacterSelectOpen, setIsCharacterSelectOpen] = useState(false);
-    const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
+    const [isSpeechEnabled, setIsSpeechEnabled] = useState(() => localStorage.getItem('tts_enabled') === 'true');
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState<string>('');
@@ -732,7 +732,11 @@ const Chat: React.FC = () => {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setIsSpeechEnabled(!isSpeechEnabled)}
+                                    onClick={() => {
+                                        const nextVal = !isSpeechEnabled;
+                                        setIsSpeechEnabled(nextVal);
+                                        localStorage.setItem('tts_enabled', String(nextVal));
+                                    }}
                                     className={`p-3.5 rounded-xl border focus:outline-none transition-all ${
                                         isSpeechEnabled 
                                             ? 'bg-purple-600/10 border-purple-500/20 text-purple-400' 
