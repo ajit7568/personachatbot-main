@@ -2,19 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import { login, loginWithGoogle } from '../services/auth';
+import { login, register, loginWithGoogle } from '../services/auth';
 import authBg from '../assets/images/auth-bg.webp';
 import googleLogo from '../assets/icons/Google_G_logo.svg';
 
 const Auth: React.FC = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [rememberMe, setRememberMe] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
-    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    
+    // Parse tab parameter from URL (default to login, tab=register to register)
+    const urlParams = new URLSearchParams(location.search);
+    const initialTab = urlParams.get('tab') === 'register' ? false : true;
+    
+    const [isLogin, setIsLogin] = useState(initialTab);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [error, setError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+    useEffect(() => {
+        const currentTab = new URLSearchParams(location.search).get('tab');
+        if (currentTab === 'register') {
+            setIsLogin(false);
+        } else {
+            setIsLogin(true);
+        }
+    }, [location.search]);
 
     useEffect(() => {
         // Check for OAuth errors in URL
@@ -25,41 +44,80 @@ const Auth: React.FC = () => {
         } else if (oauthError === 'no_code') {
             setError('Google sign-in was cancelled.');
         }
-        // Don't clear existing errors - let them persist until user interaction
     }, [location]);
+
+    const handleTabChange = (mode: boolean) => {
+        setIsLogin(mode);
+        setError('');
+        setSuccessMsg('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        navigate(`/login?tab=${mode ? 'login' : 'register'}`, { replace: true });
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setSuccessMsg('');
+        setIsLoading(true);
 
-        // Basic client-side validation
-        if (!email.trim()) {
+        const emailTrimmed = email.trim();
+        if (!emailTrimmed) {
             setError('Please enter your email address');
+            setIsLoading(false);
             return;
         }
         if (!password.trim()) {
             setError('Please enter your password');
+            setIsLoading(false);
             return;
         }
 
+        if (!isLogin) {
+            if (password.length < 8) {
+                setError('Password must be at least 8 characters long');
+                setIsLoading(false);
+                return;
+            }
+            if (password !== confirmPassword) {
+                setError('Passwords do not match');
+                setIsLoading(false);
+                return;
+            }
+        }
+
         try {
-            await login(email.trim(), password, rememberMe);
-            // Only navigate on success
-            navigate('/');
+            if (isLogin) {
+                await login(emailTrimmed, password, rememberMe);
+                navigate('/');
+            } else {
+                await register(emailTrimmed, password);
+                setSuccessMsg('Account created successfully! Logging you in...');
+                setTimeout(async () => {
+                    try {
+                        await login(emailTrimmed, password, rememberMe);
+                        navigate('/');
+                    } catch (loginErr) {
+                        setError('Account created, but automatic login failed. Please sign in manually.');
+                        setIsLogin(true);
+                        setIsLoading(false);
+                    }
+                }, 1500);
+            }
         } catch (error) {
-            // Error message is already user-friendly from the backend
             const errorMessage = error instanceof Error ? error.message : 'Authentication failed. Please try again.';
             setError(errorMessage);
-            // Don't navigate on error - stay on the page to show the error
+            setIsLoading(false);
         }
     };
 
     const handleGoogleSignIn = async () => {
         setError('');
+        setSuccessMsg('');
         setIsGoogleLoading(true);
         try {
             await loginWithGoogle();
-            // User will be redirected to Google, so we don't need to do anything else here
         } catch (error) {
             setIsGoogleLoading(false);
             setError(error instanceof Error ? error.message : 'Failed to initiate Google sign-in');
@@ -71,142 +129,211 @@ const Auth: React.FC = () => {
             style={{ backgroundImage: `url(${authBg})` }}
             className="min-h-screen flex items-center justify-center p-4 relative bg-cover bg-center bg-no-repeat font-['Inter']"
         >
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-900/90 via-purple-900/80 to-gray-900/90 backdrop-blur-sm" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0B0F19]/95 via-purple-950/40 to-[#0B0F19]/95 backdrop-blur-sm" />
             
-            {/* Glass card effect */}
-            <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="w-full max-w-md p-8 rounded-2xl bg-white/10 backdrop-blur-xl shadow-2xl border border-white/20 relative z-10"
-            >
-                <motion.div
-                    initial={{ y: -20 }}
-                    animate={{ y: 0 }}
-                    className="text-center mb-8"
-                >
-                    <h2 className="text-3xl font-bold text-white mb-2">
-                        Welcome back
-                    </h2>
-                    <p className="text-gray-300 text-sm">
-                        Sign in with your email and password or continue with Google
-                    </p>
-                </motion.div>
+            {/* Ambient glows */}
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-purple-600/10 blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-blue-600/10 blur-[100px] pointer-events-none" />
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                            Email Address
-                        </label>
-                        <motion.input
-                            whileFocus={{ scale: 1.01 }}
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg bg-gray-800/50 text-white placeholder-gray-400 border border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                            placeholder="you@example.com"
-                            required
-                        />
+            <div className="w-full max-w-md relative z-10">
+                <div className="text-center mb-8">
+                    <span className="text-3xl font-black bg-gradient-to-r from-purple-500 via-indigo-400 to-cyan-400 bg-clip-text text-transparent font-outfit tracking-widest cursor-pointer" onClick={() => navigate('/')}>
+                        PERSONA.AI
+                    </span>
+                    <p className="text-gray-400 text-xs mt-2 uppercase tracking-widest">AI Entertainment Platform</p>
+                </div>
+
+                <div className="glass-panel p-8 rounded-2xl border border-white/10 shadow-2xl relative">
+                    {/* Tab Navigation */}
+                    <div className="flex bg-white/5 p-1 rounded-xl mb-8 border border-white/5">
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange(true)}
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                                isLogin 
+                                    ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20" 
+                                    : "text-gray-400 hover:text-white"
+                            }`}
+                        >
+                            Sign In
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange(false)}
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                                !isLogin 
+                                    ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20" 
+                                    : "text-gray-400 hover:text-white"
+                            }`}
+                        >
+                            Register
+                        </button>
                     </div>
 
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                            Password
-                        </label>
-                        <div className="relative">
-                            <motion.input
-                                whileFocus={{ scale: 1.01 }}
-                                id="password"
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 pr-10 rounded-lg bg-gray-800/50 text-white placeholder-gray-400 border border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Enter your password"
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div>
+                            <label htmlFor="email" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                Email Address
+                            </label>
+                            <input
+                                id="email"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
+                                placeholder="you@example.com"
                                 required
                             />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none transition-colors"
-                                aria-label={showPassword ? "Hide password" : "Show password"}
-                            >
-                                {showPassword ? (
-                                    <EyeSlashIcon className="w-5 h-5" />
-                                ) : (
-                                    <EyeIcon className="w-5 h-5" />
-                                )}
-                            </button>
                         </div>
-                    </div>
 
-                    <div className="flex items-center">
-                        <input
-                            type="checkbox"
-                            id="remember"
-                            checked={rememberMe}
-                            onChange={(e) => setRememberMe(e.target.checked)}
-                            className="w-4 h-4 bg-gray-800/50 border border-gray-700/50 rounded focus:ring-2 focus:ring-purple-500 text-purple-600 cursor-pointer transition-all duration-200"
-                        />
-                        <label htmlFor="remember" className="ml-2 text-sm text-gray-300 cursor-pointer hover:text-gray-200 transition-colors">
-                            Keep me signed in for 30 days
-                        </label>
-                    </div>
-
-                    {error && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-3"
-                        >
-                            <ExclamationCircleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                            <p className="text-red-400 text-sm flex-1 leading-relaxed">
-                                {error}
-                            </p>
-                        </motion.div>
-                    )}
-
-                    <motion.button
-                        whileHover={{ scale: 1.01, backgroundColor: 'rgba(147, 51, 234, 0.9)' }}
-                        whileTap={{ scale: 0.99 }}
-                        type="submit"
-                        className="w-full px-4 py-3 text-white text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg hover:from-purple-500 hover:to-blue-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800 shadow-lg shadow-purple-500/20 transition-all duration-200"
-                    >
-                        Sign In
-                    </motion.button>
-
-                    <div className="relative my-6">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-gray-600"></div>
+                        <div>
+                            <label htmlFor="password" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                Password
+                            </label>
+                            <div className="relative">
+                                <input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-3 pr-10 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
+                                    placeholder={isLogin ? "Enter your password" : "Minimum 8 characters"}
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none transition-colors"
+                                >
+                                    {showPassword ? (
+                                        <EyeSlashIcon className="w-4 h-4" />
+                                    ) : (
+                                        <EyeIcon className="w-4 h-4" />
+                                    )}
+                                </button>
+                            </div>
                         </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-gray-900 text-gray-400 rounded-full">Or continue with</span>
-                        </div>
-                    </div>
 
-                    <motion.button
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        type="button"
-                        onClick={handleGoogleSignIn}
-                        disabled={isGoogleLoading}
-                        className="w-full px-4 py-3 text-white text-sm font-medium bg-white/10 hover:bg-white/20 rounded-lg border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isGoogleLoading ? (
-                            <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                <span>Signing in...</span>
-                            </>
-                        ) : (
-                            <>
-                                <img src={googleLogo} alt="Google logo" className="w-5 h-5" />
-                                <span>Sign in with Google</span>
-                            </>
+                        <AnimatePresence initial={false}>
+                            {!isLogin && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="space-y-2 overflow-hidden"
+                                >
+                                    <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                        Confirm Password
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            id="confirmPassword"
+                                            type={showConfirmPassword ? "text" : "password"}
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            className="w-full px-4 py-3 pr-10 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
+                                            placeholder="Repeat your password"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none transition-colors"
+                                        >
+                                            {showConfirmPassword ? (
+                                                <EyeSlashIcon className="w-4 h-4" />
+                                            ) : (
+                                                <EyeIcon className="w-4 h-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {isLogin && (
+                            <div className="flex items-center justify-between text-xs text-gray-400">
+                                <label className="flex items-center gap-2 cursor-pointer hover:text-gray-300 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberMe}
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                        className="w-4 h-4 rounded bg-white/5 border-white/10 text-purple-600 focus:ring-purple-500/50 cursor-pointer"
+                                    />
+                                    Keep me signed in for 30 days
+                                </label>
+                            </div>
                         )}
-                    </motion.button>
 
-                </form>
-            </motion.div>
+                        {error && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2.5"
+                            >
+                                <ExclamationCircleIcon className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                                <p className="text-red-400 text-xs leading-relaxed flex-1">
+                                    {error}
+                                </p>
+                            </motion.div>
+                        )}
+
+                        {successMsg && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5"
+                            >
+                                <span className="text-emerald-400 text-sm flex-shrink-0">✓</span>
+                                <p className="text-emerald-400 text-xs leading-relaxed flex-1">
+                                    {successMsg}
+                                </p>
+                            </motion.div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3.5 text-white text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl shadow-xl shadow-purple-500/20 hover:shadow-purple-500/30 transform active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    <span>Processing...</span>
+                                </>
+                            ) : (
+                                <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                            )}
+                        </button>
+
+                        <div className="relative my-6 flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-white/5"></div>
+                            </div>
+                            <span className="relative px-3 bg-[#0B0F19]/80 text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Or connect with</span>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleGoogleSignIn}
+                            disabled={isGoogleLoading}
+                            className="w-full px-4 py-3.5 text-white text-sm font-semibold bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isGoogleLoading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    <span>Connecting...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <img src={googleLogo} alt="Google logo" className="w-4 h-4" />
+                                    <span>Sign in with Google</span>
+                                </>
+                            )}
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     );
 };

@@ -8,16 +8,25 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        outfit: ['Outfit', 'sans-serif'],
       },
       colors: {
+        background: '#0B0F19',
+        surface: '#111827',
+        primary: '#6366F1',
+        secondary: '#8B5CF6',
+        accent: '#06B6D4',
+        success: '#10B981',
+        textPrimary: '#FFFFFF',
+        textSecondary: '#94A3B8',
         chat: {
           user: {
-            text: '#2563eb', // blue-600
-            bg: '#f3f4f6', // gray-100
+            text: '#FFFFFF',
+            bg: '#6366F1', // primary
           },
           bot: {
-            text: '#7c3aed', // purple-600
-            bg: '#eef2ff', // indigo-50
+            text: '#FFFFFF',
+            bg: '#1F2937', // dark gray card
           }
         }
       }

@@ -108,6 +108,21 @@ export const login = async (email: string, password: string, rememberMe: boolean
     }
 };
 
+export const register = async (email: string, password: string): Promise<User> => {
+    try {
+        const response = await axiosInstance.post('/auth/register', {
+            email,
+            password,
+        });
+        return response.data;
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.data?.detail) {
+            throw new Error(error.response.data.detail);
+        }
+        throw new Error('Registration failed. Please try again.');
+    }
+};
+
 export const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');

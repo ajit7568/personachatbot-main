@@ -1,8 +1,13 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
+import Landing from './components/Landing';
+import Explore from './components/Explore';
 import Chat from './components/Chat';
 import Auth from './components/Auth';
 import SetPassword from './components/SetPassword';
+import Dashboard from './components/Dashboard';
+import Settings from './components/Settings';
+import CreatorStudio from './components/CreatorStudio';
 import { getToken, handleGoogleCallback, AuthResponse } from './services/auth';
 import './index.css';
 
@@ -27,7 +32,7 @@ const GoogleCallback: React.FC = () => {
                 .then((response: AuthResponse) => {
                     const hasPassword = response.user?.has_password;
                     if (hasPassword) {
-                        navigate('/', { replace: true });
+                        navigate('/chat', { replace: true });
                     } else {
                         navigate('/set-password', { replace: true });
                     }
@@ -42,10 +47,10 @@ const GoogleCallback: React.FC = () => {
     }, [searchParams, navigate]);
 
     return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="min-h-screen bg-[#0B0F19] flex items-center justify-center">
             <div className="text-white text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-                <p>Completing Google sign-in...</p>
+                <p className="font-outfit text-sm text-gray-400">Completing Google sign-in...</p>
             </div>
         </div>
     );
@@ -54,8 +59,10 @@ const GoogleCallback: React.FC = () => {
 const App: React.FC = () => {
     return (
         <BrowserRouter>
-            <div className="min-h-screen bg-gray-900">
+            <div className="min-h-screen bg-[#0B0F19]">
                 <Routes>
+                    <Route path="/" element={<Landing />} />
+                    <Route path="/explore" element={<Explore />} />
                     <Route path="/login" element={<Auth />} />
                     <Route
                         path="/set-password"
@@ -67,10 +74,34 @@ const App: React.FC = () => {
                     />
                     <Route path="/auth/google/callback" element={<GoogleCallback />} />
                     <Route
-                        path="/"
+                        path="/chat"
                         element={
                             <ProtectedRoute>
                                 <Chat />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard"
+                        element={
+                            <ProtectedRoute>
+                                <Dashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/settings"
+                        element={
+                            <ProtectedRoute>
+                                <Settings />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/create"
+                        element={
+                            <ProtectedRoute>
+                                <CreatorStudio />
                             </ProtectedRoute>
                         }
                     />
