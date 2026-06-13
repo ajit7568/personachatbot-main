@@ -104,9 +104,15 @@ const Chat: React.FC = () => {
     });
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messageContainerRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (messageContainerRef.current) {
+            messageContainerRef.current.scrollTo({
+                top: messageContainerRef.current.scrollHeight,
+                behavior: "smooth"
+            });
+        }
     }, []);
 
     useEffect(() => {
@@ -656,7 +662,7 @@ const Chat: React.FC = () => {
                     </header>
 
                     {/* Messages List Area */}
-                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div ref={messageContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
                         {isLoadingHistory ? (
                             <div className="flex justify-center items-center h-full">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
