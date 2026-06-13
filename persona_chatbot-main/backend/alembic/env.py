@@ -19,11 +19,15 @@ from src.models import user, chat, character
 # this is the Alembic Config object
 config = context.config
 
-# Use SQLite database
-DATABASE_URL = "sqlite:///./chatbot.db"
+# Load database URL from environment variable
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./chatbot.db")
 
-# Override sqlalchemy.url
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# If URL is postgresql (e.g. from Supabase), ensure it uses the postgresql:// protocol for SQLAlchemy compatibility
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Override sqlalchemy.url - escape '%' as '%%' for ConfigParser interpolation safety
+config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

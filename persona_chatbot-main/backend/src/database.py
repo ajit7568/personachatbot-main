@@ -6,12 +6,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Use SQLite database
-DATABASE_URL = "sqlite:///./chatbot.db"
+# Load database URL from environment variable
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./chatbot.db")
+
+# If URL is postgresql (e.g. from Supabase), ensure it uses the postgresql:// protocol for SQLAlchemy compatibility
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# SQLite requires different connection arguments compared to PostgreSQL
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Needed for SQLite
+    connect_args=connect_args
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
