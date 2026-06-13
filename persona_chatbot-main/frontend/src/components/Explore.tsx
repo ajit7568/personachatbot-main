@@ -103,6 +103,7 @@ const Explore: React.FC = () => {
             navigate('/login');
             return;
         }
+        if (importingIndex !== null) return;
         setImportingIndex(idx);
         setError(null);
         try {

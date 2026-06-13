@@ -259,7 +259,8 @@ const CharacterCard: React.FC<{
 const ExternalCharacterCard: React.FC<{
     character: ExternalCharacterResult;
     onAdd: () => void;
-}> = ({ character, onAdd }) => {
+    isAdding?: boolean;
+}> = ({ character, onAdd, isAdding = false }) => {
     const genre = getGenre(character);
 
     return (
@@ -328,10 +329,20 @@ const ExternalCharacterCard: React.FC<{
             {/* Add Button */}
             <button
                 onClick={onAdd}
-                className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                disabled={isAdding}
+                className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
-                <PlusIcon className="w-5 h-5" />
-                Add to My Collection
+                {isAdding ? (
+                    <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Adding to Collection...</span>
+                    </>
+                ) : (
+                    <>
+                        <PlusIcon className="w-5 h-5" />
+                        <span>Add to My Collection</span>
+                    </>
+                )}
             </button>
         </motion.div>
     );
@@ -341,6 +352,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSel
     const [characters, setCharacters] = useState<Character[]>([]);
     const [myCharacters, setMyCharacters] = useState<Character[]>([]);
     const [externalCharacters, setExternalCharacters] = useState<ExternalCharacterResult[]>([]);
+    const [importingName, setImportingName] = useState<string | null>(null);
     const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
     const [aiMessages, setAiMessages] = useState<Record<number, string>>({});
     const [confirmedIds, setConfirmedIds] = useState<Set<number>>(new Set());
@@ -398,6 +410,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSel
     };
 
     const handleAddExternalCharacter = async (externalChar: ExternalCharacterResult) => {
+        if (importingName !== null) return;
+        setImportingName(externalChar.name);
         try {
             const newCharacter = await createCharacterFromExternal(externalChar);
             // Auto-favorite the new character
@@ -415,6 +429,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSel
             setViewMode('my-collection');
         } catch (err: any) {
             setError(err.message || 'Failed to add character');
+        } finally {
+            setImportingName(null);
         }
     };
 
@@ -648,6 +664,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSel
                                     key={`${char.source}-${char.external_id || index}`}
                                     character={char}
                                     onAdd={() => handleAddExternalCharacter(char)}
+                                    isAdding={importingName === char.name}
                                 />
                             ))}
                             {externalCharacters.length === 0 && !searching && (
