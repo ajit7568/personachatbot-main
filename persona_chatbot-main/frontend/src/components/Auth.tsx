@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import { login, register, loginWithGoogle } from '../services/auth';
+import { login, loginWithGoogle } from '../services/auth';
 import authBg from '../assets/images/auth-bg.webp';
 import googleLogo from '../assets/icons/Google_G_logo.svg';
 
@@ -17,12 +17,9 @@ const Auth: React.FC = () => {
     const [isLogin, setIsLogin] = useState(initialTab);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -49,17 +46,14 @@ const Auth: React.FC = () => {
     const handleTabChange = (mode: boolean) => {
         setIsLogin(mode);
         setError('');
-        setSuccessMsg('');
         setEmail('');
         setPassword('');
-        setConfirmPassword('');
         navigate(`/login?tab=${mode ? 'login' : 'register'}`, { replace: true });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setSuccessMsg('');
         setIsLoading(true);
 
         const emailTrimmed = email.trim();
@@ -74,37 +68,9 @@ const Auth: React.FC = () => {
             return;
         }
 
-        if (!isLogin) {
-            if (password.length < 8) {
-                setError('Password must be at least 8 characters long');
-                setIsLoading(false);
-                return;
-            }
-            if (password !== confirmPassword) {
-                setError('Passwords do not match');
-                setIsLoading(false);
-                return;
-            }
-        }
-
         try {
-            if (isLogin) {
-                await login(emailTrimmed, password, rememberMe);
-                navigate('/');
-            } else {
-                await register(emailTrimmed, password);
-                setSuccessMsg('Account created successfully! Logging you in...');
-                setTimeout(async () => {
-                    try {
-                        await login(emailTrimmed, password, rememberMe);
-                        navigate('/');
-                    } catch (loginErr) {
-                        setError('Account created, but automatic login failed. Please sign in manually.');
-                        setIsLogin(true);
-                        setIsLoading(false);
-                    }
-                }, 1500);
-            }
+            await login(emailTrimmed, password, rememberMe);
+            navigate('/');
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Authentication failed. Please try again.';
             setError(errorMessage);
@@ -114,7 +80,6 @@ const Auth: React.FC = () => {
 
     const handleGoogleSignIn = async () => {
         setError('');
-        setSuccessMsg('');
         setIsGoogleLoading(true);
         try {
             await loginWithGoogle();
@@ -170,88 +135,51 @@ const Auth: React.FC = () => {
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        <div>
-                            <label htmlFor="email" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                                Email Address
-                            </label>
-                            <input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
-                                placeholder="you@example.com"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="password" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                                Password
-                            </label>
-                            <div className="relative">
+                    {isLogin ? (
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div>
+                                <label htmlFor="email" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                    Email Address
+                                </label>
                                 <input
-                                    id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full px-4 py-3 pr-10 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
-                                    placeholder={isLogin ? "Enter your password" : "Minimum 8 characters"}
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
+                                    placeholder="you@example.com"
                                     required
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none transition-colors"
-                                >
-                                    {showPassword ? (
-                                        <EyeSlashIcon className="w-4 h-4" />
-                                    ) : (
-                                        <EyeIcon className="w-4 h-4" />
-                                    )}
-                                </button>
                             </div>
-                        </div>
 
-                        <AnimatePresence initial={false}>
-                            {!isLogin && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="space-y-2 overflow-hidden"
-                                >
-                                    <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                                        Confirm Password
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            id="confirmPassword"
-                                            type={showConfirmPassword ? "text" : "password"}
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full px-4 py-3 pr-10 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
-                                            placeholder="Repeat your password"
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                            className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none transition-colors"
-                                        >
-                                            {showConfirmPassword ? (
-                                                <EyeSlashIcon className="w-4 h-4" />
-                                            ) : (
-                                                <EyeIcon className="w-4 h-4" />
-                                            )}
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                            <div>
+                                <label htmlFor="password" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                    Password
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full px-4 py-3 pr-10 rounded-xl bg-white/5 text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
+                                        placeholder="Enter your password"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none transition-colors"
+                                    >
+                                        {showPassword ? (
+                                            <EyeSlashIcon className="w-4 h-4" />
+                                        ) : (
+                                            <EyeIcon className="w-4 h-4" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
 
-                        {isLogin && (
                             <div className="flex items-center justify-between text-xs text-gray-400">
                                 <label className="flex items-center gap-2 cursor-pointer hover:text-gray-300 transition-colors">
                                     <input
@@ -263,75 +191,100 @@ const Auth: React.FC = () => {
                                     Keep me signed in for 30 days
                                 </label>
                             </div>
-                        )}
 
-                        {error && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2.5"
-                            >
-                                <ExclamationCircleIcon className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                                <p className="text-red-400 text-xs leading-relaxed flex-1">
-                                    {error}
-                                </p>
-                            </motion.div>
-                        )}
-
-                        {successMsg && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5"
-                            >
-                                <span className="text-emerald-400 text-sm flex-shrink-0">✓</span>
-                                <p className="text-emerald-400 text-xs leading-relaxed flex-1">
-                                    {successMsg}
-                                </p>
-                            </motion.div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full px-4 py-3.5 text-white text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl shadow-xl shadow-purple-500/20 hover:shadow-purple-500/30 transform active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                            {isLoading ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                    <span>Processing...</span>
-                                </>
-                            ) : (
-                                <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                            {error && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2.5"
+                                >
+                                    <ExclamationCircleIcon className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                                    <p className="text-red-400 text-xs leading-relaxed flex-1">
+                                        {error}
+                                    </p>
+                                </motion.div>
                             )}
-                        </button>
 
-                        <div className="relative my-6 flex items-center justify-center">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-white/5"></div>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full px-4 py-3.5 text-white text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl shadow-xl shadow-purple-500/20 hover:shadow-purple-500/30 transform active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        <span>Processing...</span>
+                                    </>
+                                ) : (
+                                    <span>Sign In</span>
+                                )}
+                            </button>
+
+                            <div className="relative my-6 flex items-center justify-center">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-white/5"></div>
+                                </div>
+                                <span className="relative px-3 bg-[#0B0F19]/80 text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Or connect with</span>
                             </div>
-                            <span className="relative px-3 bg-[#0B0F19]/80 text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Or connect with</span>
-                        </div>
 
-                        <button
-                            type="button"
-                            onClick={handleGoogleSignIn}
-                            disabled={isGoogleLoading}
-                            className="w-full px-4 py-3.5 text-white text-sm font-semibold bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isGoogleLoading ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                    <span>Connecting...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <img src={googleLogo} alt="Google logo" className="w-4 h-4" />
-                                    <span>Sign in with Google</span>
-                                </>
+                            <button
+                                type="button"
+                                onClick={handleGoogleSignIn}
+                                disabled={isGoogleLoading}
+                                className="w-full px-4 py-3.5 text-white text-sm font-semibold bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isGoogleLoading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        <span>Connecting...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <img src={googleLogo} alt="Google logo" className="w-4 h-4" />
+                                        <span>Sign in with Google</span>
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    ) : (
+                        <div className="space-y-6 text-center py-4">
+                            <p className="text-gray-400 text-xs leading-relaxed max-w-sm mx-auto">
+                                Join PERSONA.AI to chat with movie legends, regional protagonists, and historical strategists. Create your account instantly with your Google account.
+                            </p>
+
+                            {error && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2.5 text-left"
+                                >
+                                    <ExclamationCircleIcon className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                                    <p className="text-red-400 text-xs leading-relaxed flex-1">
+                                        {error}
+                                    </p>
+                                </motion.div>
                             )}
-                        </button>
-                    </form>
+
+                            <button
+                                type="button"
+                                onClick={handleGoogleSignIn}
+                                disabled={isGoogleLoading}
+                                className="w-full px-4 py-4 text-white text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl transition-all flex items-center justify-center gap-3 shadow-xl shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isGoogleLoading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        <span>Connecting...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <img src={googleLogo} alt="Google logo" className="w-5 h-5" />
+                                        <span>Continue using Google</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
