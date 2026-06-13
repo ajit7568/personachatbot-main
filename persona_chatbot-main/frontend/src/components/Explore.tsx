@@ -35,6 +35,7 @@ const Explore: React.FC = () => {
     const [isSearchingOnline, setIsSearchingOnline] = useState(false);
     const [onlineSearchPerformed, setOnlineSearchPerformed] = useState(false);
     const [importingIndex, setImportingIndex] = useState<number | null>(null);
+    const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -79,21 +80,37 @@ const Explore: React.FC = () => {
     }, [searchQuery, selectedCategory, characters, viewMode]);
 
     // Handle online search
-    const handleOnlineSearch = async (e?: React.FormEvent) => {
+    const handleOnlineSearch = async (e?: React.FormEvent, queryOverride?: string) => {
         if (e) e.preventDefault();
-        if (!searchQuery.trim()) return;
+        const q = queryOverride ?? searchQuery;
+        if (!q.trim()) return;
 
         setIsSearchingOnline(true);
         setError(null);
         setOnlineSearchPerformed(true);
         try {
-            const results = await searchExternalCharacters(searchQuery, onlineCategory);
+            const results = await searchExternalCharacters(q, onlineCategory);
             setOnlineResults(results);
         } catch (err) {
             console.error("Failed to search online characters", err);
             setError("Failed to fetch online search results. Make sure your search queries are valid.");
         } finally {
             setIsSearchingOnline(false);
+        }
+    };
+
+    // Auto-load popular characters when switching to online tab for the first time
+    const handleSwitchToOnline = () => {
+        setViewMode('online');
+        setError(null);
+        if (!hasAutoLoaded) {
+            setHasAutoLoaded(true);
+            // Pre-populate search and auto-load popular characters
+            setSearchQuery(prev => {
+                const q = prev.trim() || 'popular';
+                setTimeout(() => handleOnlineSearch(undefined, q), 50);
+                return q === 'popular' ? '' : prev;
+            });
         }
     };
 
@@ -190,10 +207,7 @@ const Explore: React.FC = () => {
                             Local Roster
                         </button>
                         <button
-                            onClick={() => {
-                                setViewMode('online');
-                                setError(null);
-                            }}
+                            onClick={handleSwitchToOnline}
                             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                                 viewMode === 'online' 
                                     ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20" 
@@ -245,44 +259,62 @@ const Explore: React.FC = () => {
                     </div>
                 ) : (
                     /* Search Form for Online mode */
-                    <form onSubmit={handleOnlineSearch} className="flex flex-col md:flex-row gap-4 items-stretch justify-between mb-10 max-w-3xl">
-                        <div className="relative flex-1">
-                            <input
-                                type="text"
-                                placeholder="Search for characters online..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
-                                required
-                            />
-                            <span className="absolute left-3.5 top-4 text-gray-400 text-sm">🔍</span>
-                        </div>
+                    <div className="mb-10 space-y-4 max-w-3xl">
+                        <form onSubmit={handleOnlineSearch} className="flex flex-col md:flex-row gap-4 items-stretch">
+                            <div className="relative flex-1">
+                                <input
+                                    type="text"
+                                    placeholder="Search for any character (e.g. Batman, Naruto, Tony Stark...)"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/60 transition-all text-sm"
+                                />
+                                <span className="absolute left-3.5 top-4 text-gray-400 text-sm">🔍</span>
+                            </div>
 
-                        <select
-                            value={onlineCategory}
-                            onChange={(e) => setOnlineCategory(e.target.value)}
-                            className="px-4 py-3.5 rounded-xl bg-[#0F1424] border border-white/10 focus:outline-none focus:border-purple-500 text-sm text-white min-w-[150px]"
-                        >
-                            {onlineCategories.map(cat => (
-                                <option key={cat.value} value={cat.value}>{cat.label}</option>
+                            <select
+                                value={onlineCategory}
+                                onChange={(e) => setOnlineCategory(e.target.value)}
+                                className="px-4 py-3.5 rounded-xl bg-[#0F1424] border border-white/10 focus:outline-none focus:border-purple-500 text-sm text-white min-w-[150px]"
+                            >
+                                {onlineCategories.map(cat => (
+                                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                ))}
+                            </select>
+
+                            <button
+                                type="submit"
+                                disabled={isSearchingOnline}
+                                className="px-6 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-purple-500/10 flex items-center justify-center gap-2"
+                            >
+                                {isSearchingOnline ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        <span>Searching...</span>
+                                    </>
+                                ) : (
+                                    <span>Search Online</span>
+                                )}
+                            </button>
+                        </form>
+
+                        {/* Quick search pills */}
+                        <div className="flex flex-wrap gap-2">
+                            <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider self-center mr-1">Quick:</span>
+                            {["Batman", "Iron Man", "Naruto", "Sherlock Holmes", "Hermione Granger", "Walter White"].map(q => (
+                                <button
+                                    key={q}
+                                    onClick={() => {
+                                        setSearchQuery(q);
+                                        handleOnlineSearch(undefined, q);
+                                    }}
+                                    className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300 hover:bg-purple-600/20 hover:border-purple-500/40 hover:text-purple-300 transition-all"
+                                >
+                                    {q}
+                                </button>
                             ))}
-                        </select>
-
-                        <button
-                            type="submit"
-                            disabled={isSearchingOnline || !searchQuery.trim()}
-                            className="px-6 py-3.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-purple-500/10 flex items-center justify-center gap-2"
-                        >
-                            {isSearchingOnline ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                    <span>Searching...</span>
-                                </>
-                            ) : (
-                                <span>Search Online</span>
-                            )}
-                        </button>
-                    </form>
+                        </div>
+                    </div>
                 )}
 
                 {/* Local Roster View Grid */}

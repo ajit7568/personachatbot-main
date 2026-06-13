@@ -669,15 +669,72 @@ const Chat: React.FC = () => {
                             </div>
                         ) : messages.length === 0 ? (
                             selectedCharacter ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 p-8">
-                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-3xl font-black text-white shadow-lg border border-white/10">
-                                        {selectedCharacter.name.charAt(0)}
+                                <div className="h-full flex flex-col items-center justify-center text-center space-y-6 p-8">
+                                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-4xl font-black text-white shadow-lg border border-white/10">
+                                        {selectedCharacter.image_url ? (
+                                            <img src={selectedCharacter.image_url} alt={selectedCharacter.name} className="w-full h-full object-cover rounded-2xl" />
+                                        ) : selectedCharacter.name.charAt(0)}
                                     </div>
                                     <div className="space-y-1 max-w-sm">
-                                        <h3 className="font-outfit font-bold text-lg text-white">Say hello to {selectedCharacter.name}!</h3>
-                                        <p className="text-xs text-gray-400">
-                                            Start your conversation. Type a message below.
-                                        </p>
+                                        <h3 className="font-outfit font-bold text-xl text-white">Say hello to {selectedCharacter.name}!</h3>
+                                        <p className="text-xs text-gray-400 italic">from {selectedCharacter.movie}</p>
+                                        <p className="text-xs text-gray-500 mt-2">Start your conversation or pick a prompt below.</p>
+                                    </div>
+
+                                    {/* Conversation starter chips */}
+                                    <div className="w-full max-w-lg space-y-2">
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Conversation Starters</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {(() => {
+                                                const genre = (selectedCharacter.genre || '').toLowerCase();
+                                                const name = selectedCharacter.name;
+                                                const movie = selectedCharacter.movie;
+                                                
+                                                // Build context-aware starters
+                                                const starters: string[] = [];
+                                                starters.push(`Tell me about yourself, ${name}.`);
+                                                starters.push(`What's the most defining moment of your life?`);
+                                                
+                                                if (genre.includes('action') || genre.includes('warrior') || genre.includes('hero')) {
+                                                    starters.push(`What's your greatest battle strategy?`);
+                                                    starters.push(`How do you handle fear before a fight?`);
+                                                } else if (genre.includes('mystery') || genre.includes('detective') || genre.includes('crime')) {
+                                                    starters.push(`Walk me through how you solved your toughest case.`);
+                                                    starters.push(`What clues do you look for that others miss?`);
+                                                } else if (genre.includes('sci-fi') || genre.includes('science')) {
+                                                    starters.push(`What's the most advanced technology you've encountered?`);
+                                                    starters.push(`Describe the world you live in.`);
+                                                } else if (genre.includes('comedy') || genre.includes('humor')) {
+                                                    starters.push(`Tell me your funniest story.`);
+                                                    starters.push(`What's the best joke you know?`);
+                                                } else if (genre.includes('historical') || genre.includes('strategy')) {
+                                                    starters.push(`What's your greatest strategic insight?`);
+                                                    starters.push(`What lesson from history should we never forget?`);
+                                                } else if (genre.includes('bollywood') || genre.includes('regional')) {
+                                                    starters.push(`Kya hua tha ${movie} mein?`);
+                                                    starters.push(`Your most iconic dialogue from ${movie}?`);
+                                                } else if (genre.includes('anime')) {
+                                                    starters.push(`What's your ultimate technique or power?`);
+                                                    starters.push(`Who is your greatest rival?`);
+                                                } else if (genre.includes('fantasy')) {
+                                                    starters.push(`Describe the magic system in your world.`);
+                                                    starters.push(`What quest are you currently on?`);
+                                                } else {
+                                                    starters.push(`What is your biggest fear?`);
+                                                    starters.push(`If you could change one thing about ${movie}, what would it be?`);
+                                                }
+                                                
+                                                return starters.slice(0, 4).map((starter, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setInput(starter)}
+                                                        className="px-4 py-3 text-left text-xs text-gray-300 bg-white/5 hover:bg-purple-600/15 border border-white/5 hover:border-purple-500/30 rounded-xl transition-all leading-relaxed hover:text-white"
+                                                    >
+                                                        💬 {starter}
+                                                    </button>
+                                                ));
+                                            })()}
+                                        </div>
                                     </div>
                                 </div>
                             ) : (

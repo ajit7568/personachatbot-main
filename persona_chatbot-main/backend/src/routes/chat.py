@@ -255,14 +255,41 @@ async def get_chat_sessions(
                 None
             )
             
-            # Generate title from first user message
-            if first_user_message:
-                title = first_user_message.message[:50]
-                if len(first_user_message.message) > 50:
-                    title += "..."
-            else:
-                # Fallback if no user message found (shouldn't happen)
-                title = "New conversation"
+            # Generate smart title from conversation context
+            # Collect all user messages to pick the most descriptive one
+            user_messages = [msg for msg in all_messages if not msg.is_bot]
+            
+            title = "New conversation"
+            if user_messages:
+                # Find the most descriptive user message (longest one that isn't trivial)
+                trivial_phrases = {"hey", "hi", "hello", "ok", "okay", "yes", "no", "thanks",
+                                   "thank you", "sure", "yep", "nope", "lol", "haha", "hmm",
+                                   "bye", "alright", "cool", "great", "nice", "good"}
+                
+                # Prefer messages with more than 4 words first
+                meaningful = [m for m in user_messages if len(m.message.split()) > 4]
+                
+                if meaningful:
+                    # Pick the first meaningful message
+                    best = meaningful[0]
+                else:
+                    # All messages are short — use the first one, but enrich with character
+                    best = user_messages[0]
+                
+                raw = best.message.strip()
+                # Check if the raw message itself is trivial
+                if raw.lower() in trivial_phrases and len(user_messages) > 1:
+                    # Try the second user message
+                    for fallback in user_messages[1:]:
+                        if fallback.message.lower() not in trivial_phrases:
+                            raw = fallback.message.strip()
+                            break
+                
+                # Truncate to 50 chars
+                if len(raw) > 50:
+                    title = raw[:50] + "..."
+                else:
+                    title = raw
             
             # Get created_at (first message timestamp) and updated_at (last message timestamp)
             created_at = all_messages[0].timestamp
