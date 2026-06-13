@@ -29,7 +29,7 @@ const Landing: React.FC = () => {
     const features = [
         {
             title: "Dynamic Roleplay",
-            desc: "Powered by advanced LLaMA AI, characters maintain deep memory, lore consistency, and unique vocabulary.",
+            desc: "Powered by advanced generative AI, characters maintain deep memory, lore consistency, and unique vocabulary.",
             icon: "🎭"
         },
         {
@@ -104,7 +104,7 @@ const Landing: React.FC = () => {
                     </h1>
                     
                     <p className="text-gray-400 text-lg md:text-xl leading-relaxed mb-12 max-w-2xl mx-auto">
-                        Chat directly with iconic movie protagonists, regional archetypes, and mythological strategists. Powered by custom LLaMA AI models.
+                        Chat directly with iconic movie protagonists, regional archetypes, and mythological strategists. Powered by cutting-edge generative AI.
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
